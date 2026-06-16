@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Webhook Monitor</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-icon"></span>
+      <span class="brand-name">WebhookMon</span>
+    </div>
+
+    <nav>
+      <a class="nav-item active" onclick="showTab('dashboard')">
+         Dashboard
+      </a>
+      <a class="nav-item" onclick="showTab('endpoints')">
+         Endpoints
+      </a>
+      <a class="nav-item" onclick="showTab('events')">
+         Events
+      </a>
+      <a class="nav-item" onclick="showTab('register')">
+         Add Endpoint
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div id="apiStatus" class="status-dot"></div>
+      <span id="apiStatusText">Connecting...</span>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ── -->
+  <main class="main">
+
+    <!-- Dashboard Tab -->
+    <div id="tab-dashboard" class="tab active">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <button class="btn-primary" onclick="loadDashboard()">
+           Refresh
+        </button>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon"></div>
+          <div class="stat-value" id="totalEndpoints">—</div>
+          <div class="stat-label">Total Endpoints</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"></div>
+          <div class="stat-value" id="activeEndpoints">—</div>
+          <div class="stat-label">Active</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"></div>
+          <div class="stat-value" id="totalEvents">—</div>
+          <div class="stat-label">Total Events</div>
+        </div>
+      </div>
+
+      <!-- Recent Events -->
+      <div class="section">
+        <div class="section-header">
+          <h2>Recent Events</h2>
+        </div>
+        <div id="recentEvents" class="events-list">
+          <div class="loading-text">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Endpoints Tab -->
+    <div id="tab-endpoints" class="tab">
+      <div class="page-header">
+        <h1>Endpoints</h1>
+        <button class="btn-primary" onclick="showTab('register')">
+           Add New
+        </button>
+      </div>
+      <div id="endpointsList" class="endpoints-grid">
+        <div class="loading-text">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Events Tab -->
+    <div id="tab-events" class="tab">
+      <div class="page-header">
+        <h1>All Events</h1>
+        <button class="btn-secondary" onclick="loadEvents()">
+           Refresh
+        </button>
+      </div>
+      <div id="allEventsList" class="events-list">
+        <div class="loading-text">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Register Tab -->
+    <div id="tab-register" class="tab">
+      <div class="page-header">
+        <h1>Add Webhook Endpoint</h1>
+      </div>
+
+      <div class="form-card">
+        <div class="form-group">
+          <label>Endpoint Name</label>
+          <input
+            type="text"
+            id="endpointName"
+            placeholder="e.g. My Razorpay Webhook"
+          />
+          <span class="form-hint">
+            A friendly name to identify this endpoint
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label>Webhook URL</label>
+          <input
+            type="text"
+            id="endpointUrl"
+            placeholder="https://myapp.com/webhooks/razorpay"
+          />
+          <span class="form-hint">
+            The URL where your app receives webhooks
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label>Provider</label>
+          <select id="endpointProvider">
+            <option value="generic">Generic / Other</option>
+            <option value="razorpay">Razorpay</option>
+            <option value="stripe">Stripe</option>
+            <option value="github">GitHub</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Response Threshold (ms)</label>
+          <input
+            type="number"
+            id="endpointThreshold"
+            value="5000"
+            min="100"
+            max="30000"
+          />
+          <span class="form-hint">
+            Alert if response takes longer than this
+          </span>
+        </div>
+
+        <div id="registerError" class="form-error hidden"></div>
+        <div id="registerSuccess" class="form-success hidden"></div>
+
+        <button
+          class="btn-primary btn-full"
+          onclick="registerEndpoint()"
+        >
+          Register Endpoint
+        </button>
+      </div>
+
+      <!-- After registration: show webhook URL -->
+      <div id="webhookUrlBox" class="webhook-url-box hidden">
+        <h3> Endpoint Registered!</h3>
+        <p>Point your provider webhook to this URL:</p>
+        <div class="url-display">
+          <code id="generatedUrl"></code>
+          <button onclick="copyUrl()" class="btn-copy">
+             Copy
+          </button>
+        </div>
+        <p class="url-hint">
+          Go to your Razorpay/Stripe/GitHub dashboard
+          and set this as your webhook URL
+        </p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── Toast Notifications ── -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
