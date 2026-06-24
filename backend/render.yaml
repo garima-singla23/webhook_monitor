@@ -13,6 +13,10 @@ services:
     healthCheckPath: /health
 
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+
+    envVars:
       - key: ENVIRONMENT
         value: production
       - key: DEBUG
