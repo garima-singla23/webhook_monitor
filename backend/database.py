@@ -7,6 +7,7 @@
 from supabase import create_client, Client
 from config import settings
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
