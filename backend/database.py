@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 
 # ── Create Supabase client ──
 # This is created once when app starts
+print("SUPABASE_URL ENV:", repr(os.getenv("SUPABASE_URL")))
+print("SUPABASE_KEY ENV:", repr(os.getenv("SUPABASE_KEY")))
+print("SETTINGS URL:", repr(settings.supabase_url))
+print("SETTINGS KEY:", repr(settings.supabase_key))
+
 supabase: Client = create_client(
     settings.supabase_url,
     settings.supabase_key
