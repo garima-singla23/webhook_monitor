@@ -1,20 +1,12 @@
 // app.js — Phase 2
 // Handles: navigation, dashboard, health monitor, endpoints, events
 // ─────────────────────────────────────────────────────────────────
-
-const API = "http://localhost:8000";
-
-// ════════════════════════════════
-// AUTH STATE (Phase 7)
-// ════════════════════════════════
-// The access token lives only in memory (a plain JS variable),
-// NOT localStorage — per this app's standing rule against
-// browser storage in any context that has one. This means a
-// page refresh logs the user out, which is an honest tradeoff:
-// simpler and safer against XSS-style token theft, at the cost
-// of needing to log in again after every refresh. A production
-// version would typically use an httpOnly cookie set by the
-// backend instead, which this simple frontend doesn't do.
+const API = (
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+)
+  ? "http://localhost:8000"
+  : "https://webhook-monitor-u662.onrender.com"; 
 
 let currentUser = null;
 let accessToken = null;
