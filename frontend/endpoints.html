@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Endpoints — Webhook Monitor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        surface: { DEFAULT: "#0A0A0B", raised: "#111113", overlay: "#18181B", hover: "#1F1F23" },
+        border: { DEFAULT: "#27272A", subtle: "#1C1C1F" },
+        ink: { DEFAULT: "#FAFAFA", muted: "#A1A1AA", faint: "#71717A" },
+        accent: { DEFAULT: "#3B82F6", hover: "#60A5FA", dim: "#1D4ED8", subtle: "rgba(59,130,246,0.1)" },
+        status: { up: "#22C55E", "up-dim": "rgba(34,197,94,0.12)", down: "#EF4444", "down-dim": "rgba(239,68,68,0.12)", degraded: "#F59E0B", "degraded-dim": "rgba(245,158,11,0.12)", unknown: "#71717A", "unknown-dim": "rgba(113,113,122,0.12)" },
+      },
+      fontFamily: { sans: ["Inter", "sans-serif"], mono: ["JetBrains Mono", "monospace"] },
+    },
+  },
+};
+</script>
+<link rel="stylesheet" href="/static/base.css" />
+</head>
+<body class="min-h-screen bg-surface text-ink antialiased">
+
+<div id="shell-topbar-mobile"></div>
+
+<div class="flex">
+  <div id="shell-sidebar-wrapper" class="fixed inset-y-0 left-0 z-40 w-60 -translate-x-full border-r border-border bg-surface-raised transition-transform duration-200 lg:translate-x-0">
+    <div id="shell-sidebar" class="h-full"></div>
+  </div>
+
+  <div class="flex min-h-screen w-full flex-col lg:pl-60">
+
+    <header class="hidden border-b border-border px-8 py-5 lg:block">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-xl font-semibold text-ink">Endpoints</h1>
+          <p class="mt-0.5 text-sm text-ink-faint">Webhook URLs you're registered to monitor</p>
+        </div>
+        <button id="add-endpoint-btn" class="flex items-center gap-1.5 rounded-sm bg-accent px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke-linecap="round"/></svg>
+          Add endpoint
+        </button>
+      </div>
+    </header>
+
+    <div class="flex items-center justify-between px-4 py-4 sm:px-6 lg:hidden">
+      <h1 class="text-lg font-semibold text-ink">Endpoints</h1>
+      <button id="add-endpoint-btn-mobile" class="rounded-sm bg-accent px-3 py-1.5 text-sm font-medium text-white">Add</button>
+    </div>
+
+    <main class="flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+
+      <div class="mb-4 flex flex-wrap items-center gap-2.5">
+        <div class="relative flex-1 min-w-[200px] max-w-sm">
+          <svg class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="7" cy="7" r="5"/><path d="M14 14l-3-3" stroke-linecap="round"/></svg>
+          <input id="search-input" type="search" placeholder="Search by name or URL" aria-label="Search endpoints"
+            class="w-full rounded-sm border border-border bg-surface-raised py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-faint focus:border-accent transition-colors" />
+        </div>
+        <select id="provider-filter" aria-label="Filter by provider" class="rounded-sm border border-border bg-surface-raised px-3 py-2 text-sm text-ink-muted focus:border-accent">
+          <option value="">All providers</option>
+          <option value="razorpay">Razorpay</option>
+          <option value="stripe">Stripe</option>
+          <option value="github">GitHub</option>
+          <option value="generic">Generic</option>
+        </select>
+        <select id="status-filter" aria-label="Filter by status" class="rounded-sm border border-border bg-surface-raised px-3 py-2 text-sm text-ink-muted focus:border-accent">
+          <option value="">All statuses</option>
+          <option value="up">Operational</option>
+          <option value="down">Down</option>
+          <option value="degraded">Degraded</option>
+        </select>
+      </div>
+
+      <div class="overflow-hidden rounded-lg border border-border bg-surface-raised">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-border text-xs uppercase tracking-wide text-ink-faint">
+                <th data-sortable data-sort-key="name" data-sort-icon class="px-5 py-3 font-medium">Name</th>
+                <th data-sortable data-sort-key="provider" data-sort-icon class="px-5 py-3 font-medium">Provider</th>
+                <th class="px-5 py-3 font-medium">Status</th>
+                <th data-sortable data-sort-key="created_at" data-sort-icon class="px-5 py-3 font-medium">Created</th>
+                <th class="px-5 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="endpoints-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/ui.js"></script>
+<script src="/static/js/shell.js"></script>
+<script>
+let allEndpoints = [];
+let healthByEndpoint = {};
+let sortKey = "created_at";
+let sortDir = "desc";
+
+(async function init() {
+  const ok = await Shell.mount({ active: "endpoints" });
+  if (!ok) return;
+
+  document.getElementById("endpoints-table-body").innerHTML = skeletonRows(4, 5);
+  await loadEndpoints();
+
+  document.getElementById("search-input").addEventListener("input", render);
+  document.getElementById("provider-filter").addEventListener("change", render);
+  document.getElementById("status-filter").addEventListener("change", render);
+  document.querySelectorAll("th[data-sortable]").forEach((th) => {
+    th.addEventListener("click", () => onSort(th.dataset.sortKey));
+    th.setAttribute("tabindex", "0");
+    th.setAttribute("role", "button");
+    th.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") onSort(th.dataset.sortKey);
+    });
+  });
+
+  document.getElementById("add-endpoint-btn").addEventListener("click", openCreateModal);
+  document.getElementById("add-endpoint-btn-mobile").addEventListener("click", openCreateModal);
+
+  updateSortIcons();
+})();
+
+async function loadEndpoints() {
+  try {
+    const [epRes, healthRes] = await Promise.all([Api.listEndpoints(), Api.allHealth()]);
+    allEndpoints = epRes.endpoints || [];
+    healthByEndpoint = Object.fromEntries((healthRes.endpoints || []).map((h) => [h.endpoint_id, h]));
+    render();
+  } catch (err) {
+    Toast.show(err.message || "Could not load endpoints.", "error");
+  }
+}
+
+function onSort(key) {
+  if (sortKey === key) {
+    sortDir = sortDir === "asc" ? "desc" : "asc";
+  } else {
+    sortKey = key;
+    sortDir = "asc";
+  }
+  updateSortIcons();
+  render();
+}
+
+function updateSortIcons() {
+  document.querySelectorAll("th[data-sortable]").forEach((th) => {
+    th.dataset.sortIcon = th.dataset.sortKey === sortKey ? sortDir : "";
+  });
+}
+
+function render() {
+  const query = document.getElementById("search-input").value.trim().toLowerCase();
+  const providerFilter = document.getElementById("provider-filter").value;
+  const statusFilter = document.getElementById("status-filter").value;
+
+  let rows = allEndpoints.filter((ep) => {
+    const matchesQuery = !query || ep.name.toLowerCase().includes(query) || ep.url.toLowerCase().includes(query);
+    const matchesProvider = !providerFilter || ep.provider === providerFilter;
+    const health = healthByEndpoint[ep.id];
+    const matchesStatus = !statusFilter || (health && health.status === statusFilter);
+    return matchesQuery && matchesProvider && matchesStatus;
+  });
+
+  rows.sort((a, b) => {
+    let av = a[sortKey] ?? "";
+    let bv = b[sortKey] ?? "";
+    if (typeof av === "string") av = av.toLowerCase();
+    if (typeof bv === "string") bv = bv.toLowerCase();
+    const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  const tbody = document.getElementById("endpoints-table-body");
+
+  if (rows.length === 0) {
+    const isEmpty = allEndpoints.length === 0;
+    tbody.innerHTML = `<tr><td colspan="5">
+      <div class="flex flex-col items-center justify-center px-6 py-16 text-center">
+        <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-border text-ink-faint">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M6.5 9.5l3-3M5 7L3.5 8.5a2.5 2.5 0 003.5 3.5L8.5 11M11 9l1.5-1.5a2.5 2.5 0 00-3.5-3.5L7.5 5"/></svg>
+        </div>
+        <p class="text-sm font-medium text-ink mb-1">${isEmpty ? "No endpoints yet" : "No matching endpoints"}</p>
+        <p class="text-sm text-ink-faint max-w-sm mb-5">${isEmpty ? "Add your first webhook endpoint to start monitoring delivery health." : "Try adjusting your search or filters."}</p>
+        ${isEmpty ? '<button id="empty-add-btn" class="rounded-sm bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors">Add an endpoint</button>' : ""}
+      </div>
+    </td></tr>`;
+    if (isEmpty) document.getElementById("empty-add-btn").addEventListener("click", openCreateModal);
+    return;
+  }
+
+  tbody.innerHTML = rows
+    .map((ep) => {
+      const health = healthByEndpoint[ep.id];
+      const providerLabel = { razorpay: "Razorpay", stripe: "Stripe", github: "GitHub", generic: "Generic" }[ep.provider] || ep.provider;
+      return `
+      <tr class="border-b border-border-subtle transition-colors hover:bg-surface-hover">
+        <td class="px-5 py-3.5">
+          <a href="endpoint_detail.html?id=${ep.id}" class="font-medium text-ink hover:text-accent transition-colors">${escapeHtml(ep.name)}</a>
+          <p class="font-mono text-xs text-ink-faint truncate max-w-[260px]">${escapeHtml(ep.url)}</p>
+        </td>
+        <td class="px-5 py-3.5">
+          <span class="rounded-full border border-border px-2 py-0.5 text-xs font-medium text-ink-muted">${providerLabel}</span>
+        </td>
+        <td class="px-5 py-3.5">${health ? statusBadge(health.status) : statusBadge("unknown")}</td>
+        <td class="px-5 py-3.5 text-ink-faint">${formatRelativeTime(ep.created_at)}</td>
+        <td class="px-5 py-3.5 text-right">
+          <button data-delete-id="${ep.id}" data-delete-name="${escapeHtml(ep.name)}" aria-label="Delete ${escapeHtml(ep.name)}" class="rounded p-1.5 text-ink-faint hover:bg-status-down/10 hover:text-status-down transition-colors">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 4.5h10M6 4.5V3a1 1 0 011-1h2a1 1 0 011 1v1.5M4.5 4.5l.5 8a1 1 0 001 1h4a1 1 0 001-1l.5-8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </td>
+      </tr>`;
+    })
+    .join("");
+
+  tbody.querySelectorAll("[data-delete-id]").forEach((btn) => {
+    btn.addEventListener("click", () => confirmDelete(btn.dataset.deleteId, btn.dataset.deleteName));
+  });
+}
+
+function confirmDelete(id, name) {
+  Modal.open({
+    title: "Delete endpoint",
+    bodyHtml: `<p>Are you sure you want to delete <strong class="text-ink">${name}</strong>? This stops monitoring immediately and cannot be undone.</p>`,
+    confirmLabel: "Delete endpoint",
+    danger: true,
+    onConfirm: async () => {
+      await Api.deleteEndpoint(id);
+      Toast.show(`${name} was deleted.`, "success");
+      await loadEndpoints();
+    },
+  });
+}
+
+function openCreateModal() {
+  Modal.open({
+    title: "Add endpoint",
+    bodyHtml: `
+      <form id="create-form" novalidate>
+        <div class="mb-3.5">
+          <label for="new-name" class="mb-1.5 block text-sm font-medium text-ink-muted">Name</label>
+          <input id="new-name" type="text" required class="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-accent" placeholder="Production payments" />
+          <p id="new-name-error" class="mt-1 hidden text-xs text-status-down"></p>
+        </div>
+        <div class="mb-3.5">
+          <label for="new-url" class="mb-1.5 block text-sm font-medium text-ink-muted">Webhook URL</label>
+          <input id="new-url" type="text" required class="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm font-mono text-ink focus:border-accent" placeholder="https://yourapp.com/webhooks" />
+          <p id="new-url-error" class="mt-1 hidden text-xs text-status-down"></p>
+        </div>
+        <div class="mb-3.5">
+          <label for="new-provider" class="mb-1.5 block text-sm font-medium text-ink-muted">Provider</label>
+          <select id="new-provider" class="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-accent">
+            <option value="generic">Generic</option>
+            <option value="razorpay">Razorpay</option>
+            <option value="stripe">Stripe</option>
+            <option value="github">GitHub</option>
+          </select>
+        </div>
+        <div>
+          <label for="new-threshold" class="mb-1.5 block text-sm font-medium text-ink-muted">Response threshold (ms)</label>
+          <input id="new-threshold" type="number" min="100" max="30000" value="5000" class="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm font-mono text-ink focus:border-accent" />
+          <p class="mt-1 text-xs text-ink-faint">Alert if the response takes longer than this.</p>
+        </div>
+      </form>`,
+    confirmLabel: "Add endpoint",
+    onConfirm: async () => {
+      const name = document.getElementById("new-name").value.trim();
+      const url = document.getElementById("new-url").value.trim();
+      const provider = document.getElementById("new-provider").value;
+      const threshold_ms = parseInt(document.getElementById("new-threshold").value, 10);
+
+      let valid = true;
+      if (!name || name.length < 2) {
+        document.getElementById("new-name-error").textContent = "Enter a name with at least 2 characters.";
+        document.getElementById("new-name-error").classList.remove("hidden");
+        valid = false;
+      }
+      if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        document.getElementById("new-url-error").textContent = "URL must start with http:// or https://";
+        document.getElementById("new-url-error").classList.remove("hidden");
+        valid = false;
+      }
+      if (!valid) throw new Error("Fix the highlighted fields and try again.");
+
+      await Api.createEndpoint({ name, url, provider, threshold_ms });
+      Toast.show(`${name} added — health checks begin within 60 seconds.`, "success");
+      await loadEndpoints();
+    },
+  });
+}
+</script>
+</body>
+</html>

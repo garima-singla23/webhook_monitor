@@ -1,0 +1,31 @@
+<!--
+  js/tailwind-config.html
+  ─────────────────────────────────────────────
+  NOT loaded via <script src>  — Tailwind's CDN build requires
+  the config to be inline in each page's <head> before the
+  utility classes are generated, so this isn't includable at
+  runtime the way the JS modules are.
+
+  This file exists as the single source of truth to COPY from.
+  It must stay byte-for-byte identical to the inline block in
+  every page (index.html, dashboard.html, endpoints.html,
+  endpoint_detail.html, settings.html) and to tailwind.config.js.
+  If you change a token, update all 6 places.
+-->
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          surface: { DEFAULT: "#0A0A0B", raised: "#111113", overlay: "#18181B", hover: "#1F1F23" },
+          border: { DEFAULT: "#27272A", subtle: "#1C1C1F" },
+          ink: { DEFAULT: "#FAFAFA", muted: "#A1A1AA", faint: "#71717A" },
+          accent: { DEFAULT: "#3B82F6", hover: "#60A5FA", dim: "#1D4ED8", subtle: "rgba(59,130,246,0.1)" },
+          status: { up: "#22C55E", down: "#EF4444", degraded: "#F59E0B", unknown: "#71717A" },
+        },
+        fontFamily: { sans: ["Inter", "sans-serif"], mono: ["JetBrains Mono", "monospace"] },
+      },
+    },
+  };
+</script>

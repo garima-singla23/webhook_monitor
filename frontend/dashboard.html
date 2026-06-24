@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Webhook Monitor</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            surface: { DEFAULT: "#0A0A0B", raised: "#111113", overlay: "#18181B", hover: "#1F1F23" },
+            border: { DEFAULT: "#27272A", subtle: "#1C1C1F" },
+            ink: { DEFAULT: "#FAFAFA", muted: "#A1A1AA", faint: "#71717A" },
+            accent: { DEFAULT: "#3B82F6", hover: "#60A5FA", dim: "#1D4ED8", subtle: "rgba(59,130,246,0.1)" },
+            status: { up: "#22C55E", "up-dim": "rgba(34,197,94,0.12)", down: "#EF4444", "down-dim": "rgba(239,68,68,0.12)", degraded: "#F59E0B", "degraded-dim": "rgba(245,158,11,0.12)", unknown: "#71717A", "unknown-dim": "rgba(113,113,122,0.12)" },
+          },
+          fontFamily: { sans: ["Inter", "sans-serif"], mono: ["JetBrains Mono", "monospace"] },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="/static/base.css" />
+</head>
+<body class="min-h-screen bg-surface text-ink antialiased">
+
+  <div id="shell-topbar-mobile"></div>
+
+  <div class="flex">
+    <!-- Sidebar -->
+    <div id="shell-sidebar-wrapper" class="fixed inset-y-0 left-0 z-40 w-60 -translate-x-full border-r border-border bg-surface-raised transition-transform duration-200 lg:translate-x-0">
+      <div id="shell-sidebar" class="h-full"></div>
+    </div>
+
+    <!-- Main content -->
+    <div class="flex min-h-screen w-full flex-col lg:pl-60">
+
+      <header class="hidden border-b border-border px-8 py-5 lg:block">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-xl font-semibold text-ink">Dashboard</h1>
+            <p class="mt-0.5 text-sm text-ink-faint">An overview of every endpoint you're monitoring</p>
+          </div>
+          <button id="refresh-btn" class="flex items-center gap-1.5 rounded-sm border border-border px-3 py-1.5 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 11-1.6-3.9M13.5 2.5V6h-3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      <main class="flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+
+        <!-- Stat cards -->
+        <section aria-label="Summary statistics" class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4" id="stat-cards-section">
+          <div class="contents" id="stat-cards"></div>
+        </section>
+
+        <!-- Health overview -->
+        <section aria-labelledby="health-overview-heading" class="mb-6 overflow-hidden rounded-lg border border-border bg-surface-raised">
+          <div class="flex items-center justify-between border-b border-border px-5 py-4">
+            <h2 id="health-overview-heading" class="text-sm font-semibold text-ink">Endpoint health</h2>
+            <span class="text-xs text-ink-faint">Auto-checked every 60 seconds</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm" id="health-table">
+              <thead>
+                <tr class="border-b border-border text-xs uppercase tracking-wide text-ink-faint">
+                  <th class="px-5 py-3 font-medium">Endpoint</th>
+                  <th class="px-5 py-3 font-medium">Status</th>
+                  <th class="px-5 py-3 font-medium">Uptime</th>
+                  <th class="px-5 py-3 font-medium">Response</th>
+                  <th class="px-5 py-3 font-medium">Last checked</th>
+                  <th class="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody id="health-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Recent events -->
+        <section aria-labelledby="recent-events-heading" class="overflow-hidden rounded-lg border border-border bg-surface-raised">
+          <div class="border-b border-border px-5 py-4">
+            <h2 id="recent-events-heading" class="text-sm font-semibold text-ink">Recent webhook events</h2>
+          </div>
+          <ul id="events-list" class="divide-y divide-border-subtle" aria-label="Recent events"></ul>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/ui.js"></script>
+  <script src="/static/js/shell.js"></script>
+  <script>
+    (async function init() {
+      const ok = await Shell.mount({ active: "dashboard" });
+      if (!ok) return;
+
+      renderStatCardSkeletons();
+      document.getElementById("health-table-body").innerHTML = skeletonRows(3, 6);
+      document.getElementById("events-list").innerHTML = skeletonListItem() + skeletonListItem() + skeletonListItem();
+
+      await loadDashboard();
+
+      document.getElementById("refresh-btn").addEventListener("click", loadDashboard);
+    })();
+
+    function skeletonListItem() {
+      return `<li class="flex items-center gap-3 px-5 py-3.5"><div class="skeleton h-2 w-2 rounded-full"></div><div class="flex-1"><div class="skeleton h-3.5 w-1/2 rounded mb-2"></div><div class="skeleton h-3 w-1/3 rounded"></div></div></li>`;
+    }
+
+    function renderStatCardSkeletons() {
+      document.getElementById("stat-cards").innerHTML = skeletonCard() + skeletonCard() + skeletonCard() + skeletonCard();
+    }
+
+    async function loadDashboard() {
+      try {
+        const [health, dash] = await Promise.all([Api.allHealth(), Api.dashboardSummary()]);
+        renderStatCards(health.summary, dash.summary);
+        renderHealthTable(health.endpoints);
+        renderEvents(dash.recent_events);
+      } catch (err) {
+        Toast.show(err.message || "Could not load dashboard.", "error");
+      }
+    }
+
+    function renderStatCards(healthSummary, dashSummary) {
+      const cards = [
+        { label: "Total endpoints", value: healthSummary.total, tone: "text-ink" },
+        { label: "Operational", value: healthSummary.up, tone: "text-status-up" },
+        { label: "Down", value: healthSummary.down, tone: "text-status-down" },
+        { label: "Total events", value: dashSummary.total_events, tone: "text-ink" },
+      ];
+      document.getElementById("stat-cards").innerHTML = cards
+        .map(
+          (c) => `
+        <div class="rounded-lg border border-border bg-surface-raised p-4">
+          <p class="mb-2 text-xs font-medium uppercase tracking-wide text-ink-faint">${c.label}</p>
+          <p class="text-2xl font-semibold ${c.tone} font-mono">${c.value}</p>
+        </div>`
+        )
+        .join("");
+    }
+
+    function renderHealthTable(endpoints) {
+      const tbody = document.getElementById("health-table-body");
+
+      if (!endpoints || endpoints.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6">${emptyState({
+          icon: `<svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 8a6 6 0 1112 0A6 6 0 012 8z"/><path d="M8 5v3l2 2"/></svg>`,
+          title: "No endpoints yet",
+          body: "Register your first webhook endpoint to start monitoring delivery health.",
+          actionLabel: "Add an endpoint",
+          actionHref: "endpoints.html",
+        })}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = endpoints
+        .map(
+          (ep) => `
+        <tr class="border-b border-border-subtle transition-colors hover:bg-surface-hover">
+          <td class="px-5 py-3.5">
+            <a href="endpoint_detail.html?id=${ep.endpoint_id}" class="font-medium text-ink hover:text-accent transition-colors">${escapeHtml(ep.name)}</a>
+            <p class="font-mono text-xs text-ink-faint truncate max-w-[220px]">${escapeHtml(ep.url)}</p>
+          </td>
+          <td class="px-5 py-3.5">${statusBadge(ep.status)}</td>
+          <td class="px-5 py-3.5 font-mono text-ink-muted">${ep.uptime_percentage != null ? ep.uptime_percentage + "%" : "—"}</td>
+          <td class="px-5 py-3.5 font-mono text-ink-muted">${ep.last_response_ms != null ? ep.last_response_ms + "ms" : "—"}</td>
+          <td class="px-5 py-3.5 text-ink-faint">${formatRelativeTime(ep.last_checked)}</td>
+          <td class="px-5 py-3.5 text-right">
+            <a href="endpoint_detail.html?id=${ep.endpoint_id}" class="text-xs font-medium text-accent hover:text-accent-hover">Details →</a>
+          </td>
+        </tr>`
+        )
+        .join("");
+    }
+
+    function renderEvents(events) {
+      const list = document.getElementById("events-list");
+
+      if (!events || events.length === 0) {
+        list.innerHTML = `<li>${emptyState({
+          icon: `<svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 8h10M8 3v10" stroke-linecap="round"/></svg>`,
+          title: "No events yet",
+          body: "Events will appear here as soon as a webhook is received.",
+        })}</li>`;
+        return;
+      }
+
+      list.innerHTML = events
+        .map((ev) => {
+          const statusDot = { delivered: "bg-status-up", failed: "bg-status-down" }[ev.delivery_status] || "bg-status-unknown";
+          return `
+          <li class="flex items-center gap-3 px-5 py-3.5">
+            <span class="h-2 w-2 flex-shrink-0 rounded-full ${statusDot}" aria-hidden="true"></span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm text-ink">${escapeHtml(ev.readable || ev.event_type || "Webhook event")}</p>
+              <p class="text-xs text-ink-faint">${escapeHtml(ev.endpoints?.name || ev.provider)} · ${formatRelativeTime(ev.received_at)}</p>
+            </div>
+          </li>`;
+        })
+        .join("");
+    }
+  </script>
+</body>
+</html>

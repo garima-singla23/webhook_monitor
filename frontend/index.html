@@ -1,197 +1,233 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Webhook Monitor</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in — Webhook Monitor</title>
+  <meta name="description" content="Sign in to monitor your webhook deliveries in real time." />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            surface: { DEFAULT: "#0A0A0B", raised: "#111113", overlay: "#18181B", hover: "#1F1F23" },
+            border: { DEFAULT: "#27272A", subtle: "#1C1C1F" },
+            ink: { DEFAULT: "#FAFAFA", muted: "#A1A1AA", faint: "#71717A" },
+            accent: { DEFAULT: "#3B82F6", hover: "#60A5FA", dim: "#1D4ED8", subtle: "rgba(59,130,246,0.1)" },
+            status: { up: "#22C55E", down: "#EF4444", degraded: "#F59E0B", unknown: "#71717A" },
+          },
+          fontFamily: { sans: ["Inter", "sans-serif"], mono: ["JetBrains Mono", "monospace"] },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="/static/base.css" />
 </head>
-<body>
+<body class="min-h-screen bg-surface text-ink antialiased">
 
-  <!-- ── Sidebar ── -->
-  <aside class="sidebar">
-    <div class="brand">
-      <span class="brand-icon"></span>
-      <span class="brand-name">WebhookMon</span>
-    </div>
+  <main class="flex min-h-screen items-center justify-center px-4 py-12">
+    <div class="w-full max-w-[380px]">
 
-    <nav>
-      <a class="nav-item active" onclick="showTab('dashboard')">
-         Dashboard
-      </a>
-      <a class="nav-item" onclick="showTab('endpoints')">
-         Endpoints
-      </a>
-      <a class="nav-item" onclick="showTab('events')">
-         Events
-      </a>
-      <a class="nav-item" onclick="showTab('register')">
-         Add Endpoint
-      </a>
-    </nav>
-
-    <div class="sidebar-footer">
-      <div id="apiStatus" class="status-dot"></div>
-      <span id="apiStatusText">Connecting...</span>
-    </div>
-  </aside>
-
-  <!-- ── Main Content ── -->
-  <main class="main">
-
-    <!-- Dashboard Tab -->
-    <div id="tab-dashboard" class="tab active">
-      <div class="page-header">
-        <h1>Dashboard</h1>
-        <button class="btn-primary" onclick="loadDashboard()">
-           Refresh
-        </button>
+      <!-- Brand -->
+      <div class="mb-8 flex flex-col items-center text-center">
+        <div class="mb-4 flex h-9 w-9 items-center justify-center rounded-md bg-accent text-white">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 1L2 9h4l-1 6 7-9H8l1-5z" fill="currentColor" />
+          </svg>
+        </div>
+        <h1 class="text-lg font-semibold text-ink">Webhook Monitor</h1>
+        <p class="mt-1 text-sm text-ink-faint">Real-time delivery monitoring for your webhooks</p>
       </div>
 
-      <!-- Summary Cards -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon"></div>
-          <div class="stat-value" id="totalEndpoints">—</div>
-          <div class="stat-label">Total Endpoints</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon"></div>
-          <div class="stat-value" id="activeEndpoints">—</div>
-          <div class="stat-label">Active</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon"></div>
-          <div class="stat-value" id="totalEvents">—</div>
-          <div class="stat-label">Total Events</div>
-        </div>
-      </div>
+      <!-- Auth card -->
+      <div class="rounded-lg border border-border bg-surface-raised p-6 shadow-sm">
 
-      <!-- Recent Events -->
-      <div class="section">
-        <div class="section-header">
-          <h2>Recent Events</h2>
-        </div>
-        <div id="recentEvents" class="events-list">
-          <div class="loading-text">Loading...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Endpoints Tab -->
-    <div id="tab-endpoints" class="tab">
-      <div class="page-header">
-        <h1>Endpoints</h1>
-        <button class="btn-primary" onclick="showTab('register')">
-           Add New
-        </button>
-      </div>
-      <div id="endpointsList" class="endpoints-grid">
-        <div class="loading-text">Loading...</div>
-      </div>
-    </div>
-
-    <!-- Events Tab -->
-    <div id="tab-events" class="tab">
-      <div class="page-header">
-        <h1>All Events</h1>
-        <button class="btn-secondary" onclick="loadEvents()">
-           Refresh
-        </button>
-      </div>
-      <div id="allEventsList" class="events-list">
-        <div class="loading-text">Loading...</div>
-      </div>
-    </div>
-
-    <!-- Register Tab -->
-    <div id="tab-register" class="tab">
-      <div class="page-header">
-        <h1>Add Webhook Endpoint</h1>
-      </div>
-
-      <div class="form-card">
-        <div class="form-group">
-          <label>Endpoint Name</label>
-          <input
-            type="text"
-            id="endpointName"
-            placeholder="e.g. My Razorpay Webhook"
-          />
-          <span class="form-hint">
-            A friendly name to identify this endpoint
-          </span>
-        </div>
-
-        <div class="form-group">
-          <label>Webhook URL</label>
-          <input
-            type="text"
-            id="endpointUrl"
-            placeholder="https://myapp.com/webhooks/razorpay"
-          />
-          <span class="form-hint">
-            The URL where your app receives webhooks
-          </span>
-        </div>
-
-        <div class="form-group">
-          <label>Provider</label>
-          <select id="endpointProvider">
-            <option value="generic">Generic / Other</option>
-            <option value="razorpay">Razorpay</option>
-            <option value="stripe">Stripe</option>
-            <option value="github">GitHub</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Response Threshold (ms)</label>
-          <input
-            type="number"
-            id="endpointThreshold"
-            value="5000"
-            min="100"
-            max="30000"
-          />
-          <span class="form-hint">
-            Alert if response takes longer than this
-          </span>
-        </div>
-
-        <div id="registerError" class="form-error hidden"></div>
-        <div id="registerSuccess" class="form-success hidden"></div>
-
-        <button
-          class="btn-primary btn-full"
-          onclick="registerEndpoint()"
-        >
-          Register Endpoint
-        </button>
-      </div>
-
-      <!-- After registration: show webhook URL -->
-      <div id="webhookUrlBox" class="webhook-url-box hidden">
-        <h3> Endpoint Registered!</h3>
-        <p>Point your provider webhook to this URL:</p>
-        <div class="url-display">
-          <code id="generatedUrl"></code>
-          <button onclick="copyUrl()" class="btn-copy">
-             Copy
+        <!-- Mode tabs -->
+        <div class="mb-5 flex rounded-sm border border-border p-0.5" role="tablist" aria-label="Authentication mode">
+          <button
+            id="tab-login"
+            role="tab"
+            aria-selected="true"
+            class="flex-1 rounded-[4px] px-3 py-1.5 text-sm font-medium transition-colors bg-surface-hover text-ink"
+          >
+            Log in
+          </button>
+          <button
+            id="tab-signup"
+            role="tab"
+            aria-selected="false"
+            class="flex-1 rounded-[4px] px-3 py-1.5 text-sm font-medium transition-colors text-ink-faint hover:text-ink-muted"
+          >
+            Create account
           </button>
         </div>
-        <p class="url-hint">
-          Go to your Razorpay/Stripe/GitHub dashboard
-          and set this as your webhook URL
-        </p>
-      </div>
-    </div>
 
+        <form id="auth-form" novalidate>
+          <div id="form-error" class="mb-4 hidden rounded-sm border border-status-down/30 bg-status-down/10 px-3 py-2.5 text-sm text-status-down" role="alert"></div>
+          <div id="form-notice" class="mb-4 hidden rounded-sm border border-status-up/30 bg-status-up/10 px-3 py-2.5 text-sm text-status-up" role="status"></div>
+
+          <div class="mb-4">
+            <label for="email" class="mb-1.5 block text-sm font-medium text-ink-muted">Email</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              autocomplete="username"
+              required
+              class="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent transition-colors"
+              placeholder="you@company.com"
+            />
+            <p id="email-error" class="mt-1 hidden text-xs text-status-down"></p>
+          </div>
+
+          <div class="mb-5">
+            <label for="password" class="mb-1.5 block text-sm font-medium text-ink-muted">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              autocomplete="current-password"
+              required
+              minlength="8"
+              class="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent transition-colors"
+              placeholder="At least 8 characters"
+            />
+            <p id="password-error" class="mt-1 hidden text-xs text-status-down"></p>
+          </div>
+
+          <button
+            type="submit"
+            id="submit-btn"
+            class="flex w-full items-center justify-center gap-2 rounded-sm bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span id="submit-label">Log in</span>
+            <svg id="submit-spinner" class="hidden h-4 w-4 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="2" opacity="0.25" />
+              <path d="M14.5 8a6.5 6.5 0 00-6.5-6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </button>
+        </form>
+      </div>
+
+      <p class="mt-5 text-center text-xs text-ink-faint">
+        Email confirmation may be required depending on project settings.
+      </p>
+    </div>
   </main>
 
-  <!-- ── Toast Notifications ── -->
-  <div id="toast" class="toast hidden"></div>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/ui.js"></script>
+  <script>
+    let mode = "login"; // "login" | "signup"
 
-  <script src="/static/app.js"></script>
+    const tabLogin = document.getElementById("tab-login");
+    const tabSignup = document.getElementById("tab-signup");
+    const form = document.getElementById("auth-form");
+    const submitLabel = document.getElementById("submit-label");
+    const submitBtn = document.getElementById("submit-btn");
+    const submitSpinner = document.getElementById("submit-spinner");
+    const formError = document.getElementById("form-error");
+    const formNotice = document.getElementById("form-notice");
+
+    // Already logged in? Skip straight to the dashboard.
+    if (Auth.isLoggedIn()) {
+      window.location.href = "/static/dashboard.html";
+    }
+
+    function setMode(next) {
+      mode = next;
+      const isLogin = mode === "login";
+      tabLogin.setAttribute("aria-selected", String(isLogin));
+      tabSignup.setAttribute("aria-selected", String(!isLogin));
+      tabLogin.classList.toggle("bg-surface-hover", isLogin);
+      tabLogin.classList.toggle("text-ink", isLogin);
+      tabLogin.classList.toggle("text-ink-faint", !isLogin);
+      tabSignup.classList.toggle("bg-surface-hover", !isLogin);
+      tabSignup.classList.toggle("text-ink", !isLogin);
+      tabSignup.classList.toggle("text-ink-faint", isLogin);
+      submitLabel.textContent = isLogin ? "Log in" : "Create account";
+      hideMessages();
+    }
+
+    tabLogin.addEventListener("click", () => setMode("login"));
+    tabSignup.addEventListener("click", () => setMode("signup"));
+
+    function hideMessages() {
+      formError.classList.add("hidden");
+      formNotice.classList.add("hidden");
+      document.getElementById("email-error").classList.add("hidden");
+      document.getElementById("password-error").classList.add("hidden");
+    }
+
+    function showFieldError(fieldId, message) {
+      const input = document.getElementById(fieldId);
+      const errorEl = document.getElementById(`${fieldId}-error`);
+      input.classList.add("border-status-down");
+      errorEl.textContent = message;
+      errorEl.classList.remove("hidden");
+    }
+
+    function clearFieldErrors() {
+      ["email", "password"].forEach((id) => {
+        document.getElementById(id).classList.remove("border-status-down");
+      });
+    }
+
+    function validate(email, password) {
+      clearFieldErrors();
+      let valid = true;
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showFieldError("email", "Enter a valid email address.");
+        valid = false;
+      }
+      if (!password || password.length < 8) {
+        showFieldError("password", "Password must be at least 8 characters.");
+        valid = false;
+      }
+      return valid;
+    }
+
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      submitLabel.classList.toggle("hidden", isLoading);
+      submitSpinner.classList.toggle("hidden", !isLoading);
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideMessages();
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      if (!validate(email, password)) return;
+
+      setLoading(true);
+      try {
+        if (mode === "signup") {
+          const result = await Api.signup(email, password);
+          if (!result.session) {
+            formNotice.textContent = result.message || "Check your email to confirm your account, then log in.";
+            formNotice.classList.remove("hidden");
+            setMode("login");
+            return;
+          }
+          Auth.setToken(result.session.access_token);
+        } else {
+          const result = await Api.login(email, password);
+          Auth.setToken(result.access_token);
+        }
+        window.location.href = "/static/dashboard.html";
+      } catch (err) {
+        formError.textContent = err.message || "Something went wrong. Please try again.";
+        formError.classList.remove("hidden");
+      } finally {
+        setLoading(false);
+      }
+    });
+  </script>
 </body>
 </html>

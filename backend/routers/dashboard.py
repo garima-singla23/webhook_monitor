@@ -2,15 +2,23 @@
 # ─────────────────────────────────────────────
 # API routes for dashboard data
 # Frontend calls these to populate dashboard
+#
+# Phase 7: this was the most serious pre-existing gap —
+# get_dashboard_summary() previously called get_all_endpoints()
+# with no user filter at all, meaning ANY logged-in user (or
+# even an unauthenticated caller, since there was no auth check
+# whatsoever) could see every other user's endpoints and events
+# on the main dashboard. Fixed by requiring auth and scoping
+# every query to the current user.
 # ─────────────────────────────────────────────
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from database import (
     get_all_endpoints,
     get_all_recent_events,
     get_event_stats,
-    supabase
 )
+from auth_deps import get_current_user, AuthUser
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,22 +30,25 @@ router = APIRouter(
 
 
 @router.get("/summary")
-async def get_dashboard_summary():
+async def get_dashboard_summary(user: AuthUser = Depends(get_current_user)):
     """
-    Get overall dashboard summary.
+    Get overall dashboard summary for the CURRENT USER only.
     Called when dashboard page loads.
 
     Returns:
-    - total endpoints
-    - total events today
-    - recent events
-    - per-endpoint stats
+    - total endpoints (this user's)
+    - total events (this user's)
+    - recent events (this user's)
+    - per-endpoint stats (this user's)
+
+    Example:
+    GET /api/dashboard/summary
+    Authorization: Bearer <token>
     """
     try:
-        endpoints = await get_all_endpoints()
-        recent_events = await get_all_recent_events(limit=20)
+        endpoints = await get_all_endpoints(user_id=user.id)
+        recent_events = await get_all_recent_events(limit=20, user_id=user.id)
 
-        # Get stats for each endpoint
         endpoint_stats = []
         for ep in endpoints:
             stats = await get_event_stats(ep["id"])
@@ -73,9 +84,18 @@ async def get_dashboard_summary():
 
 
 @router.get("/events/recent")
-async def get_recent_events(limit: int = 50):
-    """Get recent events across all endpoints"""
-    events = await get_all_recent_events(limit)
+async def get_recent_events(
+    limit: int = 50,
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    Get recent events across the current user's own endpoints only.
+
+    Example:
+    GET /api/dashboard/events/recent
+    Authorization: Bearer <token>
+    """
+    events = await get_all_recent_events(limit=limit, user_id=user.id)
     return {
         "success": True,
         "count": len(events),

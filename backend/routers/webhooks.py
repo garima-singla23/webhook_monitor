@@ -5,13 +5,16 @@
 # Razorpay/Stripe/GitHub webhooks to
 # ─────────────────────────────────────────────
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from database import (
     get_endpoint,
     save_webhook_event,
     get_events_for_endpoint
 )
 from providers import get_provider
+from services.retry_queue import attempt_delivery
+from services.ai_explainer import explain_payload
+from websocket.manager import broadcast
 import time
 import logging
 
@@ -23,7 +26,8 @@ router = APIRouter(tags=["webhooks"])
 @router.post("/webhook/{endpoint_id}")
 async def receive_webhook(
     endpoint_id: str,
-    request: Request
+    request: Request,
+    background_tasks: BackgroundTasks
 ):
     """
     Receive a webhook from any provider.
@@ -68,6 +72,7 @@ async def receive_webhook(
     parsed = provider.safe_parse(payload)
 
     # ── Step 5: Save to database ──
+    event = None
     try:
         event = await save_webhook_event({
             "endpoint_id": endpoint_id,
@@ -75,6 +80,8 @@ async def receive_webhook(
             "event_type": parsed.get("event_type"),
             "payload": payload,
             "status": "received",
+            "delivery_status": "pending",
+            "retry_count": 0,
             "received_at": time.strftime(
                 "%Y-%m-%dT%H:%M:%SZ",
                 time.gmtime(received_at)
@@ -93,7 +100,52 @@ async def receive_webhook(
         # Never let database errors cause webhook loss
         logger.error(f"Failed to save webhook: {e}")
 
-    # ── Step 6: ALWAYS return 200 immediately ──
+    # ── Step 5b: Broadcast to live dashboard (Phase 5) ──
+    # Fires the instant the event is saved — before delivery
+    # attempts or AI processing even start, so the dashboard
+    # shows "received" immediately and updates again later
+    # when delivery/AI results come in via their own broadcasts.
+    if event:
+        await broadcast("webhook_received", {
+            "event_id": event["id"],
+            "endpoint_id": endpoint_id,
+            "endpoint_name": endpoint.get("name"),
+            "provider": provider_name,
+            "event_type": parsed.get("event_type"),
+            "readable": parsed.get("readable"),
+            "received_at": event.get("received_at"),
+        })
+
+    # ── Step 6: Schedule delivery attempt (Phase 3) ──
+    # This runs AFTER the response is sent to the provider,
+    # so it never slows down the 200 response.
+    # If endpoint.url is the customer's actual receiving server,
+    # we forward this event there and retry on failure.
+    if event and endpoint.get("url"):
+        background_tasks.add_task(
+            attempt_delivery,
+            event_id=event["id"],
+            endpoint_id=endpoint_id,
+            endpoint_url=endpoint["url"],
+            payload=payload,
+            retry_count=0
+        )
+
+    # ── Step 6b: Schedule AI explainer (Phase 4) ──
+    # Also runs after the response is sent. Generates a
+    # plain-English summary of this payload, separate from
+    # the rule-based "readable" text from the provider parser.
+    if event:
+        background_tasks.add_task(
+            explain_payload,
+            event_id=event["id"],
+            provider=provider_name,
+            event_type=parsed.get("event_type", "unknown"),
+            payload=payload,
+            readable=parsed.get("readable", "")
+        )
+
+    # ── Step 7: ALWAYS return 200 immediately ──
     # This is critical — providers retry if they
     # don't get 200 quickly, causing duplicates
     return {

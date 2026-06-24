@@ -1,0 +1,43 @@
+# render.yaml
+
+services:
+  - type: web
+    name: webhook_monitor_api
+    runtime: python
+    rootDir: backend
+    plan: free
+
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+
+      # Everything below has NO value set here on purpose —
+      # secrets are entered manually in Render's dashboard,
+      # never committed to this file or to git.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: UPSTASH_REDIS_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: ALERT_EMAIL_TO
+        sync: false
+      - key: ALERT_EMAIL_FROM
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
