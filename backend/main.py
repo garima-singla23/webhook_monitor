@@ -34,7 +34,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://webhook-monitor-bice.vercel.app",   # if using Vercel
+        "http://localhost:5500",              # local frontend
+        "http://127.0.0.1:5500",
+                  ],              # React dev server],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

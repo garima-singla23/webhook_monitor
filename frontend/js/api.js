@@ -7,7 +7,7 @@ const API_BASE = (
   window.location.hostname === "127.0.0.1"
 )
   ? "http://localhost:8000"
-  : "https://YOUR-RENDER-URL.onrender.com"; // ← replace with your real Render URL
+  : "https://webhook-monitor-u662.onrender.com"; // ← replace with your real Render URL
 
 const TOKEN_KEY = "wm_access_token"; // sessionStorage, not localStorage — cleared per tab session
 
