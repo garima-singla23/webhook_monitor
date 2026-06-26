@@ -3,9 +3,9 @@
  */
 
 const NAV_ITEMS = [
-  { key: "dashboard", label: "Dashboard", href: "/static/dashboard.html", icon: "grid" },
-  { key: "endpoints", label: "Endpoints", href: "/static/endpoints.html", icon: "link" },
-  { key: "settings", label: "Settings", href: "/static/settings.html", icon: "settings" },
+  { key: "dashboard", label: "Dashboard", href: "/dashboard.html", icon: "grid" },
+  { key: "endpoints", label: "Endpoints", href: "/endpoints.html", icon: "link" },
+  { key: "settings", label: "Settings", href: "/settings.html", icon: "settings" },
 ];
 
 const ICONS = {

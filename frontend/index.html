@@ -24,7 +24,7 @@
       },
     };
   </script>
-  <link rel="stylesheet" href="/static/base.css" />
+  <link rel="stylesheet" href="/base.css" />
 </head>
 <body class="min-h-screen bg-surface text-ink antialiased">
 
@@ -118,8 +118,8 @@
     </div>
   </main>
 
-  <script src="/static/js/api.js"></script>
-  <script src="/static/js/ui.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
   <script>
     let mode = "login"; // "login" | "signup"
 
@@ -134,7 +134,7 @@
 
     // Already logged in? Skip straight to the dashboard.
     if (Auth.isLoggedIn()) {
-      window.location.href = "/static/dashboard.html";
+      window.location.href = "/dashboard.html";
     }
 
     function setMode(next) {
@@ -220,7 +220,7 @@
           const result = await Api.login(email, password);
           Auth.setToken(result.access_token);
         }
-        window.location.href = "/static/dashboard.html";
+        window.location.href = "/dashboard.html";
       } catch (err) {
         formError.textContent = err.message || "Something went wrong. Please try again.";
         formError.classList.remove("hidden");
