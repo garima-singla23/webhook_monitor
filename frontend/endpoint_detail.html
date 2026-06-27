@@ -22,7 +22,7 @@ tailwind.config = {
   },
 };
 </script>
-<link rel="stylesheet" href="/base.css" />
+<link rel="stylesheet" href="base.css" />
 </head>
 <body class="min-h-screen bg-surface text-ink antialiased">
 
@@ -126,9 +126,9 @@ tailwind.config = {
   </div>
 </div>
 
-<script src="/js/api.js"></script>
-<script src="/js/ui.js"></script>
-<script src="/js/shell.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/shell.js"></script>
 <script>
 const endpointId = new URLSearchParams(location.search).get("id");
 let currentEndpoint = null;
@@ -181,9 +181,24 @@ async function loadHeader() {
   try {
     const { endpoint } = await Api.getEndpoint(endpointId);
     currentEndpoint = endpoint;
+    const webhookUrl = `${API_BASE}/webhook/${endpoint.id}`;
     document.getElementById("header-info").innerHTML = `
       <h1 class="text-xl font-semibold text-ink">${escapeHtml(endpoint.name)}</h1>
-      <p class="mt-0.5 font-mono text-sm text-ink-faint">${escapeHtml(endpoint.url)}</p>`;
+      <p class="mt-0.5 text-sm text-ink-faint">Delivers to: <span class="font-mono">${escapeHtml(endpoint.url)}</span></p>
+      <div class="mt-2.5 flex items-center gap-2 rounded-sm border border-border bg-surface-raised px-3 py-2 max-w-xl">
+        <span class="text-xs font-medium text-ink-faint flex-shrink-0">Give this to your provider:</span>
+        <code id="detail-webhook-url" class="flex-1 truncate font-mono text-xs text-accent">${escapeHtml(webhookUrl)}</code>
+        <button id="detail-copy-webhook-btn" type="button" class="flex-shrink-0 rounded-sm border border-border px-2 py-0.5 text-xs font-medium text-ink-muted hover:bg-surface-hover hover:text-ink transition-colors">
+          Copy
+        </button>
+      </div>`;
+
+    document.getElementById("detail-copy-webhook-btn").addEventListener("click", async (e) => {
+      await navigator.clipboard.writeText(webhookUrl);
+      e.target.textContent = "Copied";
+      Toast.show("Webhook URL copied.", "success");
+      setTimeout(() => { e.target.textContent = "Copy"; }, 1500);
+    });
   } catch (err) {
     Toast.show(err.message || "Could not load endpoint.", "error");
   }
