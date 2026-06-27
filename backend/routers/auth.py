@@ -95,6 +95,20 @@ async def login(data: LoginRequest):
         })
     except Exception as e:
         logger.warning(f"Login failed for {data.email}: {e}")
+
+        # Supabase's own error message distinguishes "wrong password"
+        # from "email not confirmed yet" — but only in the raw exception
+        # text, not as a separate error code we can branch on cleanly.
+        # Checking for this substring is the same approach Supabase's
+        # own client libraries use internally, since gotrue doesn't
+        # expose a more structured error type here.
+        error_text = str(e).lower()
+        if "email not confirmed" in error_text or "not confirmed" in error_text:
+            raise HTTPException(
+                status_code=403,
+                detail="Please confirm your email before logging in. Check your inbox for the confirmation link."
+            )
+
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     return {
